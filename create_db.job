@@ -1,0 +1,15 @@
+#!/bin/bash
+#SBATCH --account=training2420
+#SBATCH --job-name=DNAdb
+#SBATCH --cpus-per-task=1
+#SBATCH --output=logs/DNAdbtest.%j
+#SBATCH --time=10:00:00
+#SBATCH --partition=dc-gpu
+#SBATCH --gres=gpu
+#SBATCH --mem=32000M
+
+module load Python/3.11.3 CUDA/12 cuDNN/8.9.5.29-CUDA-12
+cd /p/home/jusers/zhuge3/jureca/shared/amazon-lofi-beats/
+source env/bin/activate
+
+srun python create_vector_db.py
