@@ -8,9 +8,12 @@ from tqdm import tqdm
 torch.set_grad_enabled(False)
 
 device = "mps"
-batch_size = 64
+batch_size = 32
+max_len = 660
 
 df = pd.read_csv("~/Downloads/BOLD_embeddings_seed.tsv", sep="\t")
+# Truncate nucraw to max 660 characters
+df["nucraw"] = df["nucraw"].apply(lambda x: x[:max_len])
 # Add a space at every 4 characters in the sequence
 df["nucraw"] = df["nucraw"].apply(lambda x: " ".join([x[i:i+4] for i in range(0, len(x), 4)]))
 
@@ -40,8 +43,13 @@ dataset_dict = {
     "embeddings": []
 }
 
+count = 0
 for nucleotides, processids in tqdm(dataloader):
     inputs = tokenizer(nucleotides, return_tensors="pt", padding=True)
+
+    if count < 643:
+        count += 1
+        continue
 
     inputs = {k: v.to(device) for k, v in inputs.items()}
 
@@ -51,5 +59,8 @@ for nucleotides, processids in tqdm(dataloader):
     dataset_dict["processid"].extend(processids)
     dataset_dict["embeddings"].extend([outputs[i, :] for i in range(outputs.shape[0])])
 
-hf_dataset = HFDataset.from_dict(dataset_dict)
-hf_dataset.push_to_hub("LofiAmazon/BOLD-Embeddings")
+    if count % 100 == 0:
+        hf_dataset = HFDataset.from_dict(dataset_dict)
+        hf_dataset.push_to_hub("LofiAmazon/BOLD-Embeddings")
+
+    count += 1
