@@ -48,11 +48,6 @@ dataset_dict = {
 count = 0
 for nucleotides, processids in tqdm(dataloader):
     inputs = tokenizer(nucleotides, return_tensors="pt", padding=True)
-
-    if count < 643:
-        count += 1
-        continue
-
     inputs = {k: v.to(device) for k, v in inputs.items()}
 
     outputs = model(**inputs).hidden_states[-1]
