@@ -1,12 +1,14 @@
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
+from datasets import Dataset as HFDataset
 from transformers import PreTrainedTokenizerFast, BertForMaskedLM
 from tqdm import tqdm
 
 torch.set_grad_enabled(False)
 
 device = "mps"
+batch_size = 64
 
 df = pd.read_csv("~/Downloads/BOLD_embeddings_seed.tsv", sep="\t")
 # Add a space at every 4 characters in the sequence
@@ -31,7 +33,12 @@ class VectorDataset(Dataset):
         return row["nucraw"], row["processid"]
 
 dataset = VectorDataset(df)
-dataloader = DataLoader(dataset, batch_size=64, shuffle=False)
+dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+
+dataset_dict = {
+    "processid": [],
+    "embeddings": []
+}
 
 for nucleotides, processids in tqdm(dataloader):
     inputs = tokenizer(nucleotides, return_tensors="pt", padding=True)
@@ -39,4 +46,10 @@ for nucleotides, processids in tqdm(dataloader):
     inputs = {k: v.to(device) for k, v in inputs.items()}
 
     outputs = model(**inputs).hidden_states[-1]
-    outputs = outputs.mean(1).squeeze().cpu().numpy()
+    outputs = outputs.mean(1).cpu().numpy()
+
+    dataset_dict["processid"].extend(processids)
+    dataset_dict["embeddings"].extend([outputs[i, :] for i in range(outputs.shape[0])])
+
+hf_dataset = HFDataset.from_dict(dataset_dict)
+hf_dataset.push_to_hub("LofiAmazon/BOLD-Embeddings")
