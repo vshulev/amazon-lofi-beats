@@ -9,6 +9,7 @@ from datasets import load_dataset
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 import wandb
+from huggingface_hub import PyTorchModelHubMixin
 
 
 # Ecolayer feautres
@@ -44,7 +45,7 @@ class DNAEnvDataset:
         }
 
 # Define the model architecture
-class DNASeqClassifier(nn.Module):
+class DNASeqClassifier(nn.Module, PyTorchModelHubMixin):
     def __init__(self, bert_model, env_dim, num_classes):
         super(DNASeqClassifier, self).__init__()
         self.bert = bert_model
@@ -100,7 +101,7 @@ def train(
 
             wandb.log({ "batch_loss": loss.item() })
 
-        train_accuracy = correct_predictions.double() / total_predictions
+        train_accuracy = correct_predictions / total_predictions
         print(f"Epoch {epoch+1}, Training loss: {train_loss / len(train_loader)}, Training accuracy: {train_accuracy}")
 
         # Validation
@@ -124,7 +125,7 @@ def train(
                 correct_predictions += torch.sum(preds == labels)
                 total_predictions += labels.size(0)
 
-        val_accuracy = correct_predictions.double() / total_predictions
+        val_accuracy = correct_predictions / total_predictions
         print(f"Epoch {epoch+1}, Validation loss: {val_loss / len(val_loader)}, Validation accuracy: {val_accuracy}")
 
         wandb.log({
@@ -142,6 +143,7 @@ def main(
         device: str,
         batch_size: int,
         lr: float,
+        repo: str,
 ):
     # Load the dataset
     ds = load_dataset(dataset)
@@ -153,6 +155,7 @@ def main(
     val_dataset = val_dataset.filter(lambda x: x["genus"] is not None)
     genera = set(train_dataset["genus"])
     val_dataset = val_dataset.filter(lambda x: x["genus"] in genera)
+    val_dataset = val_dataset.shuffle(seed=42).select(range(int(0.01 * len(val_dataset))))
 
     # Create labels
     label_map = {genus: i for i, genus in enumerate(genera)}
@@ -189,6 +192,9 @@ def main(
 
     train(clf_model, tokenizer, device, train_loader, val_loader, criterion, optimizer, epochs)
 
+    # Save the model
+    clf_model.push_to_hub(repo)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -210,6 +216,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--lr", type=float, default=2e-5,
+    )
+    parser.add_argument(
+        "--repo", type=str, default="LofiAmazon/BarcodeBERT-Finetuned-Amazon",
     )
 
     args = parser.parse_args()
