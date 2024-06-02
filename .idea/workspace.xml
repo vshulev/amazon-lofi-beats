@@ -6,7 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="08914ce9-9f1a-4a6d-b093-b97a53997be9" name="Changes" comment="track *.csc and *.gpkg files using Git LFS">
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
