@@ -54,6 +54,8 @@ for nucleotides in tqdm(df["nucraw"]):
 # Add embeddings as a column to the dataframe
 df["embeddings"] = embeddings
 
+df.to_csv("amazon_data.tsv", sep="\t", index=False)
+
 def mean_embeddings(group):
     return np.mean(group.tolist(), axis=0)
 
@@ -62,32 +64,30 @@ df_by_species = df[df["species"].notna()].groupby("species")["embeddings"].apply
 df_by_genus = df[df["genus"].notna()].groupby("genus")["embeddings"].apply(mean_embeddings).reset_index()
 
 vectors_all = [{
-    "id": df["processid"][i],
-    "values": df["embeddings"][i],
-    "metadata": {col: df[col][i] for col in taxonomy_columns},
+    "id": df["processid"].iloc[i],
+    "values": df["embeddings"].iloc[i],
+    "metadata": {col: (df[col].iloc[i] if pd.notna(df[col].iloc[i]) else "") for col in taxonomy_columns},
 } for i in range(len(df))]
 
 vectors_by_species = [{
-    "id": df_by_species["species"][i],
-    "values": df_by_species["embeddings"][i],
+    "id": df_by_species["species"].iloc[i],
+    "values": df_by_species["embeddings"].iloc[i],
 } for i in range(len(df_by_species))]
 
 vectors_by_genus = [{
-    "id": df_by_genus["genus"][i],
-    "values": df_by_genus["embeddings"][i],
+    "id": df_by_genus["genus"].iloc[i],
+    "values": df_by_genus["embeddings"].iloc[i],
 } for i in range(len(df_by_genus))]
 
-index.upsert(
-    vectors=vectors_all,
-    namespace="all"
-)
+def upsert_paginated(index, vectors, namespace, page_size=100):
+    for i in tqdm(range(0, len(vectors), page_size)):
+        index.upsert(
+            vectors=vectors[i:i+page_size],
+            namespace=namespace,
+        )
 
-index.upsert(
-    vectors=vectors_by_species,
-    namespace="by_species"
-)
+upsert_paginated(index, vectors_all, "all")
 
-index.upsert(
-    vectors=vectors_by_genus,
-    namespace="by_genus"
-)
+upsert_paginated(index, vectors_by_species, "by_species")
+
+upsert_paginated(index, vectors_by_genus, "by_genus")
