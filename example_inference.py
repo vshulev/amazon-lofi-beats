@@ -1,5 +1,5 @@
 import torch
-from transformers import PreTrainedTokenizerFast, BertForMaskedLM, BertConfig
+from transformers import PreTrainedTokenizerFast, BertForMaskedLM
 
 model = BertForMaskedLM.from_pretrained("LofiAmazon/BarcodeBERT-Entire-BOLD")
 model.eval()
